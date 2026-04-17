@@ -1,60 +1,92 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 cd /d "%~dp0"
 
+echo.
 echo [1/6] Pull latest main...
 git pull origin main
 if errorlevel 1 goto :error
 
+echo.
 echo [2/6] Remove old WebGL build files...
 git rm -r --ignore-unmatch Build TemplateData index.html
 if errorlevel 1 goto :error
 
-if not exist ".nojekyll" (
-    type nul > .nojekyll
-)
-
 echo.
-echo ==============================================
+echo ============================================
 echo Build WebGL from Unity into this folder now:
 echo %CD%
 echo.
-echo When the build is finished, press any key.
-echo ==============================================
-pause > nul
+echo When the build is finished, press Enter.
+echo ============================================
+set /p DUMMY=
 
-echo [3/6] Stage changes...
-git add -A
+echo.
+echo [3/6] Check build files...
+if not exist "Build\Build.loader.js" (
+    echo ERROR: Build\Build.loader.js was not found.
+    goto :error
+)
+if not exist "Build\Build.framework.js" (
+    echo ERROR: Build\Build.framework.js was not found.
+    goto :error
+)
+if not exist "Build\Build.data" (
+    echo ERROR: Build\Build.data was not found.
+    goto :error
+)
+if not exist "Build\Build.wasm" (
+    echo ERROR: Build\Build.wasm was not found.
+    goto :error
+)
+if not exist "index.html" (
+    echo ERROR: index.html was not found.
+    goto :error
+)
+echo Build files look OK.
+
+echo.
+echo [4/6] Add new build files...
+git add .
 if errorlevel 1 goto :error
 
-echo [4/6] Current changes:
-git status --short
 echo.
-
-set "COMMIT_MSG="
-set /p COMMIT_MSG=Commit message (Enter = Update WebGL build): 
-if "%COMMIT_MSG%"=="" set "COMMIT_MSG=Update WebGL build"
-
 echo [5/6] Commit...
-git commit -m "%COMMIT_MSG%"
-if errorlevel 1 (
-    echo.
-    echo No commit was created. There may be no changes.
-    goto :end
+git diff --cached --quiet
+if not errorlevel 1 (
+    echo No changes detected. Commit skipped.
+    goto :success
 )
 
-echo [6/6] Push to origin/main...
+git commit -m "Update WebGL build"
+if errorlevel 1 goto :error
+
+echo.
+echo [6/6] Push to GitHub...
 git push origin main
 if errorlevel 1 goto :error
 
+:success
 echo.
-echo Done. Please check GitHub Pages in your browser.
+echo ============================================
+echo Done.
+echo Push completed successfully.
+echo GitHub Pages may take a little time to update.
+echo Please wait a bit, then refresh with Ctrl+F5.
+echo.
+echo Press Enter to close this window.
+echo ============================================
+set /p DUMMY=
 goto :end
 
 :error
 echo.
-echo An error occurred. Process stopped.
-pause
+echo ============================================
+echo ERROR: The process stopped before completion.
+echo Please read the messages above.
+echo Press Enter to close this window.
+echo ============================================
+set /p DUMMY=
 
 :end
 endlocal
